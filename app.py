@@ -81,7 +81,18 @@ def scan_stocks():
             continue
     
     # Store setups and interval - sort by date for chronological walkforward
-    all_setups.sort(key=lambda x: x['date'])
+    # Parse dates for proper sorting
+    from datetime import datetime as dt
+    def parse_date(d):
+        try:
+            # Handle various ISO formats
+            if 'T' in d:
+                return dt.fromisoformat(d.replace('Z', '+00:00'))
+            return dt.fromisoformat(d)
+        except:
+            return dt.min
+    
+    all_setups.sort(key=lambda x: parse_date(x['date']))
     
     session_id = session.get('session_id', 'default')
     current_setups[session_id] = {'setups': all_setups, 'interval': interval, 'period': period}
