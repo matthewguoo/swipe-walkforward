@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from src.data import fetch_stock_data, get_sp500_symbols, scan_universe
 from src.trigger import load_trigger, find_triggers, Trigger
-from src.simulation import simulate_trade, SwipeDecision, WalkforwardSession, TradeResult
+from src.simulation import simulate_trade, SwipeDecision, WalkforwardSession, TradeResult, PortfolioConfig
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -66,7 +66,9 @@ def scan_stocks():
             print(f"Error scanning {symbol}: {e}")
             continue
     
-    # Store setups and interval
+    # Store setups and interval - sort by date for chronological walkforward
+    all_setups.sort(key=lambda x: x['date'])
+    
     session_id = session.get('session_id', 'default')
     current_setups[session_id] = {'setups': all_setups, 'interval': interval, 'period': period}
     
@@ -199,6 +201,23 @@ def get_stats():
     """Get current session statistics"""
     wf_session = get_session()
     return jsonify(wf_session.get_stats())
+
+
+@app.route('/api/portfolio', methods=['POST'])
+def set_portfolio():
+    """Configure portfolio settings"""
+    data = request.json
+    wf_session = get_session()
+    wf_session.set_portfolio(
+        starting_equity=data.get('starting_equity', 10000),
+        risk_pct=data.get('risk_per_trade_pct', 2.0),
+        max_position_pct=data.get('max_position_pct', 25.0)
+    )
+    return jsonify({'status': 'ok', 'portfolio': {
+        'starting_equity': wf_session.portfolio.starting_equity,
+        'risk_per_trade_pct': wf_session.portfolio.risk_per_trade_pct,
+        'max_position_pct': wf_session.portfolio.max_position_pct,
+    }})
 
 
 @app.route('/api/master-chart/<symbol>')
