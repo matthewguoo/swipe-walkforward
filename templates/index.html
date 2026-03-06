@@ -399,9 +399,15 @@
                 paper_bgcolor: '#2a2420',
                 plot_bgcolor: '#2a2420',
                 font: { color: '#e8dcc8' },
-                xaxis: { rangeslider: { visible: false }, gridcolor: '#332d28' },
+                xaxis: { 
+                    rangeslider: { visible: false }, 
+                    gridcolor: '#332d28',
+                    type: 'category',  // Remove time gaps
+                    tickangle: -45,
+                    nticks: 10
+                },
                 yaxis: { gridcolor: '#332d28' },
-                margin: { t: 10, b: 40, l: 50, r: 20 },
+                margin: { t: 10, b: 60, l: 50, r: 20 },
                 showlegend: false
             };
             
@@ -426,7 +432,12 @@
                     paper_bgcolor: '#2a2420',
                     plot_bgcolor: '#2a2420',
                     font: { color: '#a89880', size: 10 },
-                    xaxis: { rangeslider: { visible: false }, gridcolor: '#332d28', showticklabels: false },
+                    xaxis: { 
+                        rangeslider: { visible: false }, 
+                        gridcolor: '#332d28', 
+                        showticklabels: false,
+                        type: 'category'
+                    },
                     yaxis: { gridcolor: '#332d28', side: 'right' },
                     margin: { t: 5, b: 5, l: 10, r: 50 },
                     showlegend: false,
@@ -498,9 +509,15 @@
                     paper_bgcolor: '#2a2420',
                     plot_bgcolor: '#2a2420',
                     font: { color: '#e8dcc8' },
-                    xaxis: { rangeslider: { visible: false }, gridcolor: '#332d28' },
+                    xaxis: { 
+                        rangeslider: { visible: false }, 
+                        gridcolor: '#332d28',
+                        type: 'category',
+                        tickangle: -45,
+                        nticks: 10
+                    },
                     yaxis: { gridcolor: '#332d28' },
-                    margin: { t: 10, b: 40, l: 50, r: 20 },
+                    margin: { t: 10, b: 60, l: 50, r: 20 },
                     showlegend: false,
                     shapes
                 };
