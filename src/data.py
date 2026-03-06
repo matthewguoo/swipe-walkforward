@@ -55,6 +55,10 @@ def fetch_stock_data(
     df = df.reset_index()
     df.columns = [c.replace(' ', '_') for c in df.columns]
     
+    # Normalize datetime column name (yfinance uses 'Date' for daily, 'Datetime' for intraday)
+    if 'Datetime' in df.columns:
+        df = df.rename(columns={'Datetime': 'Date'})
+    
     # Save to cache
     df.to_parquet(cache_file)
     

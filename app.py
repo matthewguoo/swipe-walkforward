@@ -54,12 +54,26 @@ def scan_stocks():
             
             trigger_indices = df[triggers].index.tolist()
             for idx in trigger_indices:
-                row = df.iloc[idx]
-                date_val = row['Date'] if 'Date' in df.columns else df.index[idx]
+                row = df.iloc[idx] if isinstance(idx, int) else df.loc[idx]
+                # Handle both DatetimeIndex and Date column
+                if 'Date' in df.columns:
+                    date_val = row['Date']
+                else:
+                    date_val = df.index[df.index.get_loc(idx)] if not isinstance(idx, int) else df.index[idx]
+                
+                # Convert to ISO string
+                if hasattr(date_val, 'isoformat'):
+                    date_str = date_val.isoformat()
+                else:
+                    date_str = str(date_val)
+                
+                # Get numeric index for array access
+                num_idx = df.index.get_loc(idx) if not isinstance(idx, int) else idx
+                
                 all_setups.append({
                     'symbol': symbol,
-                    'date': date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val),
-                    'index': int(idx) if isinstance(idx, (int, float)) else df.index.get_loc(idx),
+                    'date': date_str,
+                    'index': int(num_idx),
                     'close': float(row['Close']),
                 })
         except Exception as e:
@@ -97,8 +111,8 @@ def get_setup(setup_idx):
     # Fetch data
     df = fetch_stock_data(symbol, period=period, interval=interval)
     
-    # Only show data UP TO trigger point (no lookahead)
-    df_visible = df.iloc[:trigger_idx + 1].copy()
+    # Only show last 50 candles up to trigger point (no lookahead)
+    df_visible = df.iloc[max(0, trigger_idx - 49):trigger_idx + 1].copy()
     
     # Format for candlestick chart
     dates = df_visible['Date'].astype(str).tolist() if 'Date' in df_visible.columns else df_visible.index.astype(str).tolist()
@@ -123,7 +137,7 @@ def get_setup(setup_idx):
         # Find matching date range
         trigger_date = df.iloc[trigger_idx]['Date'] if 'Date' in df.columns else df.index[trigger_idx]
         spx_mask = spx_df['Date'] <= trigger_date if 'Date' in spx_df.columns else spx_df.index <= trigger_date
-        spx_visible = spx_df[spx_mask].tail(len(df_visible))
+        spx_visible = spx_df[spx_mask].tail(50)  # Last 50 candles
         
         spx_dates = spx_visible['Date'].astype(str).tolist() if 'Date' in spx_visible.columns else spx_visible.index.astype(str).tolist()
         spx_chart = {
