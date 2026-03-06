@@ -117,6 +117,26 @@ def get_setup(setup_idx):
     entry_price = df.iloc[trigger_idx + 1]['Open'] if trigger_idx + 1 < len(df) else df.iloc[trigger_idx]['Close']
     can_trade, position_size, reason = wf_session.can_open_position(entry_price, trigger.trade_params.stop_loss_pct)
     
+    # Get SPX data for same timeframe
+    try:
+        spx_df = fetch_stock_data('^GSPC', period=period, interval=interval)
+        # Find matching date range
+        trigger_date = df.iloc[trigger_idx]['Date'] if 'Date' in df.columns else df.index[trigger_idx]
+        spx_mask = spx_df['Date'] <= trigger_date if 'Date' in spx_df.columns else spx_df.index <= trigger_date
+        spx_visible = spx_df[spx_mask].tail(len(df_visible))
+        
+        spx_dates = spx_visible['Date'].astype(str).tolist() if 'Date' in spx_visible.columns else spx_visible.index.astype(str).tolist()
+        spx_chart = {
+            'dates': spx_dates,
+            'open': spx_visible['Open'].tolist(),
+            'high': spx_visible['High'].tolist(),
+            'low': spx_visible['Low'].tolist(),
+            'close': spx_visible['Close'].tolist(),
+        }
+    except Exception as e:
+        print(f"Error fetching SPX: {e}")
+        spx_chart = None
+    
     return jsonify({
         'symbol': symbol,
         'trigger_date': setup['date'],
@@ -124,6 +144,7 @@ def get_setup(setup_idx):
         'setup_idx': setup_idx,
         'total_setups': len(setups),
         'chart': chart_data,
+        'spx_chart': spx_chart,
         'can_buy': can_trade,
         'no_cash_reason': reason if not can_trade else None,
         'available_cash': wf_session.available_cash,

@@ -201,6 +201,7 @@
                 </div>
                 
                 <div id="chart" style="display: none;"></div>
+                <div id="spx-chart" style="display: none; height: 150px; margin-top: 10px;"></div>
                 
                 <div id="result-reveal" class="result-reveal">
                     <div class="result-pnl" id="result-pnl">+10.0%</div>
@@ -405,6 +406,39 @@
             };
             
             Plotly.newPlot('chart', [trace], layout, { responsive: true });
+            
+            // Draw SPX context chart
+            if (data.spx_chart) {
+                document.getElementById('spx-chart').style.display = 'block';
+                
+                const spxTrace = {
+                    type: 'candlestick',
+                    x: data.spx_chart.dates,
+                    open: data.spx_chart.open,
+                    high: data.spx_chart.high,
+                    low: data.spx_chart.low,
+                    close: data.spx_chart.close,
+                    increasing: { line: { color: '#6b8e6b' } },
+                    decreasing: { line: { color: '#8b6b6b' } }
+                };
+                
+                const spxLayout = {
+                    paper_bgcolor: '#2a2420',
+                    plot_bgcolor: '#2a2420',
+                    font: { color: '#a89880', size: 10 },
+                    xaxis: { rangeslider: { visible: false }, gridcolor: '#332d28', showticklabels: false },
+                    yaxis: { gridcolor: '#332d28', side: 'right' },
+                    margin: { t: 5, b: 5, l: 10, r: 50 },
+                    showlegend: false,
+                    annotations: [{
+                        x: 0.02, y: 0.95, xref: 'paper', yref: 'paper',
+                        text: 'SPX', showarrow: false,
+                        font: { color: '#a89880', size: 11 }
+                    }]
+                };
+                
+                Plotly.newPlot('spx-chart', [spxTrace], spxLayout, { responsive: true });
+            }
         }
         
         async function decide(decision) {
