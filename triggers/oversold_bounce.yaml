@@ -1,0 +1,24 @@
+# Oversold Bounce Trigger
+# Inspired by BNF's "buy panic, sell relief" strategy
+
+name: oversold_bounce
+
+conditions:
+  - indicator: rsi
+    period: 14
+    operator: "<"
+    value: 30
+    column: Close
+  
+  - indicator: pct_from_high
+    period: 20
+    operator: ">"
+    value: 10
+    column: Close
+
+logic: AND
+
+trade_params:
+  stop_loss_pct: 5.0      # 5% stop loss
+  take_profit_pct: 10.0   # 10% take profit (2R)
+  max_hold_days: 20       # Exit after 20 days if neither hit

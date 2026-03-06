@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swipe Walkforward</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1a1612;
+            --bg-secondary: #2a2420;
+            --bg-card: #332d28;
+            --accent-warm: #c4a882;
+            --accent-gold: #d4af37;
+            --accent-crimson: #8b2942;
+            --text-primary: #e8dcc8;
+            --text-secondary: #a89880;
+            --green: #4ade80;
+            --red: #f87171;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--bg-card);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            color: var(--accent-warm);
+            font-weight: 400;
+        }
+        
+        h1 span {
+            color: var(--accent-crimson);
+        }
+        
+        .stats-bar {
+            display: flex;
+            gap: 30px;
+            font-size: 0.9rem;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--accent-gold);
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        .chart-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--bg-card);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .symbol-badge {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-warm);
+        }
+        
+        .setup-counter {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        #chart {
+            width: 100%;
+            height: 400px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .swipe-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .swipe-btn {
+            padding: 16px 48px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .swipe-btn.pass {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 2px solid var(--text-secondary);
+        }
+        
+        .swipe-btn.pass:hover {
+            background: var(--red);
+            color: white;
+            border-color: var(--red);
+        }
+        
+        .swipe-btn.buy {
+            background: var(--accent-crimson);
+            color: white;
+        }
+        
+        .swipe-btn.buy:hover {
+            background: var(--green);
+            transform: scale(1.05);
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--bg-card);
+        }
+        
+        .card-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        
+        .result-reveal {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .result-reveal.show {
+            display: block;
+        }
+        
+        .result-pnl {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .result-pnl.positive { color: var(--green); }
+        .result-pnl.negative { color: var(--red); }
+        
+        .result-details {
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+        
+        .scan-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .scan-form input, .scan-form select {
+            background: var(--bg-card);
+            border: 1px solid var(--text-secondary);
+            border-radius: 6px;
+            padding: 10px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        
+        .scan-btn {
+            background: var(--accent-crimson);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .scan-btn:hover {
+            background: var(--accent-gold);
+            color: var(--bg-primary);
+        }
+        
+        .scan-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bg-card);
+            font-size: 0.85rem;
+        }
+        
+        .history-symbol {
+            color: var(--accent-warm);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .intro-screen {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .intro-screen h2 {
+            color: var(--accent-warm);
+            margin-bottom: 15px;
+        }
+        
+        .intro-screen p {
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto 30px;
+            line-height: 1.6;
+        }
+        
+        .keyboard-hint {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+        
+        kbd {
+            background: var(--bg-card);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>swipe <span>walkforward</span></h1>
+            <div class="stats-bar">
+                <div class="stat">
+                    <div class="stat-value" id="total-r">0.0R</div>
+                    <div class="stat-label">Total P&L</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="win-rate">--%</div>
+                    <div class="stat-label">Win Rate</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="trades">0</div>
+                    <div class="stat-label">Trades</div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span class="symbol-badge" id="current-symbol">---</span>
+                    <span class="setup-counter" id="setup-counter">Setup 0 / 0</span>
+                </div>
+                
+                <div id="intro" class="intro-screen">
+                    <h2>Train Your Intuition</h2>
+                    <p>Scan for oversold setups, swipe through charts frozen at the trigger point, and see if your gut can beat the system.</p>
+                </div>
+                
+                <div id="chart" style="display: none;"></div>
+                
+                <div id="result-reveal" class="result-reveal">
+                    <div class="result-pnl" id="result-pnl">+10.0%</div>
+                    <div class="result-details" id="result-details">Take profit hit in 5 days</div>
+                </div>
+                
+                <div class="swipe-buttons" id="swipe-buttons" style="display: none;">
+                    <button class="swipe-btn pass" onclick="decide('pass')">Pass</button>
+                    <button class="swipe-btn buy" onclick="decide('buy')">Buy</button>
+                </div>
+                
+                <div class="keyboard-hint" id="keyboard-hint" style="display: none;">
+                    <kbd>←</kbd> Pass &nbsp;&nbsp; <kbd>→</kbd> Buy &nbsp;&nbsp; <kbd>Space</kbd> Next
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="card">
+                    <div class="card-title">Scan Settings</div>
+                    <div class="scan-form">
+                        <input type="text" id="symbols" placeholder="Symbols (comma-sep) or leave blank for S&P500">
+                        <select id="period">
+                            <option value="1y">1 Year</option>
+                            <option value="2y" selected>2 Years</option>
+                            <option value="5y">5 Years</option>
+                        </select>
+                        <button class="scan-btn" id="scan-btn" onclick="startScan()">
+                            Scan for Setups
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">R:R Settings</div>
+                    <div class="scan-form">
+                        <label style="color: var(--text-secondary); font-size: 0.85rem;">
+                            Stop Loss %
+                            <input type="number" id="stop-loss" value="5" min="1" max="50" style="margin-top: 5px;">
+                        </label>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem;">
+                            Take Profit %
+                            <input type="number" id="take-profit" value="10" min="1" max="100" style="margin-top: 5px;">
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Recent Decisions</div>
+                    <div class="history-list" id="history-list">
+                        <div style="color: var(--text-secondary); font-size: 0.85rem;">No decisions yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentSetupIdx = 0;
+        let totalSetups = 0;
+        let isRevealing = false;
+        
+        async function startScan() {
+            const btn = document.getElementById('scan-btn');
+            btn.disabled = true;
+            btn.textContent = 'Scanning...';
+            
+            const symbolsInput = document.getElementById('symbols').value;
+            const period = document.getElementById('period').value;
+            
+            const symbols = symbolsInput ? symbolsInput.split(',').map(s => s.trim().toUpperCase()) : null;
+            
+            try {
+                const res = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbols, period })
+                });
+                const data = await res.json();
+                
+                totalSetups = data.count;
+                currentSetupIdx = 0;
+                
+                if (totalSetups > 0) {
+                    document.getElementById('intro').style.display = 'none';
+                    document.getElementById('chart').style.display = 'block';
+                    document.getElementById('swipe-buttons').style.display = 'flex';
+                    document.getElementById('keyboard-hint').style.display = 'block';
+                    loadSetup(0);
+                } else {
+                    alert('No setups found with current settings');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error scanning: ' + e.message);
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'Scan for Setups';
+        }
+        
+        async function loadSetup(idx) {
+            if (idx >= totalSetups) {
+                alert('All setups reviewed! Check your stats.');
+                return;
+            }
+            
+            document.getElementById('result-reveal').classList.remove('show');
+            isRevealing = false;
+            
+            const res = await fetch(`/api/setup/${idx}`);
+            const data = await res.json();
+            
+            document.getElementById('current-symbol').textContent = data.symbol;
+            document.getElementById('setup-counter').textContent = `Setup ${idx + 1} / ${totalSetups}`;
+            
+            // Draw candlestick chart
+            const trace = {
+                type: 'candlestick',
+                x: data.chart.dates,
+                open: data.chart.open,
+                high: data.chart.high,
+                low: data.chart.low,
+                close: data.chart.close,
+                increasing: { line: { color: '#4ade80' } },
+                decreasing: { line: { color: '#f87171' } }
+            };
+            
+            const layout = {
+                paper_bgcolor: '#2a2420',
+                plot_bgcolor: '#2a2420',
+                font: { color: '#e8dcc8' },
+                xaxis: {
+                    rangeslider: { visible: false },
+                    gridcolor: '#332d28',
+                    showgrid: true
+                },
+                yaxis: {
+                    gridcolor: '#332d28',
+                    showgrid: true
+                },
+                margin: { t: 10, b: 40, l: 50, r: 20 },
+                showlegend: false
+            };
+            
+            Plotly.newPlot('chart', [trace], layout, { responsive: true });
+        }
+        
+        async function decide(decision) {
+            if (isRevealing) {
+                // Move to next setup
+                currentSetupIdx++;
+                loadSetup(currentSetupIdx);
+                return;
+            }
+            
+            const res = await fetch('/api/decide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    setup_idx: currentSetupIdx,
+                    decision: decision
+                })
+            });
+            const data = await res.json();
+            
+            // Update stats
+            if (data.session_stats) {
+                document.getElementById('total-r').textContent = data.session_stats.total_r.toFixed(1) + 'R';
+                document.getElementById('win-rate').textContent = data.session_stats.win_rate.toFixed(0) + '%';
+                document.getElementById('trades').textContent = data.session_stats.total_trades;
+            }
+            
+            // Show result if bought
+            if (decision === 'buy' && data.result) {
+                const reveal = document.getElementById('result-reveal');
+                const pnl = document.getElementById('result-pnl');
+                const details = document.getElementById('result-details');
+                
+                pnl.textContent = (data.result.pnl_pct >= 0 ? '+' : '') + data.result.pnl_pct.toFixed(1) + '%';
+                pnl.className = 'result-pnl ' + (data.result.pnl_pct >= 0 ? 'positive' : 'negative');
+                details.textContent = `${data.result.exit_reason.replace('_', ' ')} in ${data.result.holding_days} days`;
+                
+                reveal.classList.add('show');
+                isRevealing = true;
+                
+                // Add to history
+                addToHistory(document.getElementById('current-symbol').textContent, data.result.pnl_r);
+            } else {
+                // Passed, move to next
+                currentSetupIdx++;
+                loadSetup(currentSetupIdx);
+            }
+        }
+        
+        function addToHistory(symbol, pnlR) {
+            const list = document.getElementById('history-list');
+            if (list.querySelector('div[style]')) {
+                list.innerHTML = '';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <span class="history-symbol">${symbol}</span>
+                <span style="color: ${pnlR >= 0 ? 'var(--green)' : 'var(--red)'}">
+                    ${pnlR >= 0 ? '+' : ''}${pnlR.toFixed(1)}R
+                </span>
+            `;
+            list.prepend(item);
+        }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('chart').style.display === 'none') return;
+            
+            if (e.key === 'ArrowLeft') {
+                decide('pass');
+            } else if (e.key === 'ArrowRight') {
+                decide('buy');
+            } else if (e.key === ' ') {
+                if (isRevealing) {
+                    currentSetupIdx++;
+                    loadSetup(currentSetupIdx);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
