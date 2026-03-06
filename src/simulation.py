@@ -234,18 +234,26 @@ class WalkforwardSession:
             details={"reason": reason}
         ))
     
-    def add_decision(self, decision: SwipeDecision, result: Optional[TradeResult]):
+    def add_decision(self, decision: SwipeDecision, result: Optional[TradeResult], 
+                      entry_price: float = 0, stop_pct: float = 5.0):
         self.decisions.append(decision)
         if decision.decision == "buy" and result:
             self.results.append(result)
             
             # Calculate position size based on risk
             risk_amount = self.current_equity * (self.portfolio.risk_per_trade_pct / 100)
-            # Position size = risk_amount / stop_loss_pct
-            # PnL = position_size * pnl_pct
-            pnl_dollars = risk_amount * result.pnl_r  # pnl_r is in R multiples
+            position_size = risk_amount / (stop_pct / 100)  # Size to risk exactly risk_amount
             
+            max_position = self.current_equity * (self.portfolio.max_position_pct / 100)
+            position_size = min(position_size, max_position, self.available_cash)
+            
+            # Calculate PnL
+            pnl_pct = result.pnl_pct / 100  # Convert to decimal
+            pnl_dollars = position_size * pnl_pct
+            
+            # Update equity and cash (position closes immediately in simulation)
             self.current_equity += pnl_dollars
+            # available_cash stays same since we open and close in same step
             self.equity_curve.append(self.current_equity)
     
     def get_stats(self) -> Dict:

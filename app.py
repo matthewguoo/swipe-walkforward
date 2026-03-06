@@ -199,11 +199,13 @@ def make_decision():
     
     # Simulate trade if bought
     result = None
+    trigger = load_trigger('triggers/oversold_bounce.yaml')
+    entry_price = df.iloc[trigger_idx + 1]['Open'] if trigger_idx + 1 < len(df) else df.iloc[trigger_idx]['Close']
+    
     if decision == "buy":
-        trigger = load_trigger('triggers/oversold_bounce.yaml')
         result = simulate_trade(df, trigger_idx + 1, trigger.trade_params)
     
-    wf_session.add_decision(swipe, result)
+    wf_session.add_decision(swipe, result, entry_price, trigger.trade_params.stop_loss_pct)
     
     # Get the full chart including outcome (show 30 candles after trigger)
     look_ahead = 30

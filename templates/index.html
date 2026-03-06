@@ -191,7 +191,10 @@
         <div class="main-grid">
             <div class="chart-card">
                 <div class="chart-header">
-                    <span class="symbol-badge" id="current-symbol">---</span>
+                    <div>
+                        <span class="symbol-badge" id="current-symbol">---</span>
+                        <div id="trigger-date" style="font-size: 1.1rem; color: var(--accent-gold); margin-top: 4px;">---</div>
+                    </div>
                     <span class="setup-counter" id="setup-counter">Setup 0 / 0</span>
                 </div>
                 
@@ -262,6 +265,13 @@
                     <div class="scan-form">
                         <label>Stop Loss %<input type="number" id="stop-loss" value="5" min="1" max="50"></label>
                         <label>Take Profit %<input type="number" id="take-profit" value="10" min="1" max="100"></label>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Open Positions</div>
+                    <div id="positions-list" style="font-size: 0.8rem; color: var(--text-secondary);">
+                        No open positions
                     </div>
                 </div>
                 
@@ -369,6 +379,7 @@
             const data = await res.json();
             
             document.getElementById('current-symbol').textContent = data.symbol;
+            document.getElementById('trigger-date').textContent = data.trigger_date;
             document.getElementById('setup-counter').textContent = `${idx + 1} / ${totalSetups}`;
             
             canBuy = data.can_buy;
