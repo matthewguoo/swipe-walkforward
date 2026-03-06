@@ -367,20 +367,23 @@
         }
         
         async function loadSetup(idx) {
-            if (idx >= totalSetups) {
+            const res = await fetch(`/api/setup/${idx}`);
+            const data = await res.json();
+            
+            if (data.done || data.error === 'No more setups') {
                 alert('All setups reviewed!');
                 return;
             }
             
+            // Update to actual index (may have skipped some)
+            currentSetupIdx = data.setup_idx;
+            
             document.getElementById('result-reveal').classList.remove('show');
             isRevealing = false;
             
-            const res = await fetch(`/api/setup/${idx}`);
-            const data = await res.json();
-            
             document.getElementById('current-symbol').textContent = data.symbol;
             document.getElementById('trigger-date').textContent = data.trigger_date;
-            document.getElementById('setup-counter').textContent = `${idx + 1} / ${totalSetups}`;
+            document.getElementById('setup-counter').textContent = `${data.setup_idx + 1} / ${data.total_setups}`;
             
             canBuy = data.can_buy;
             

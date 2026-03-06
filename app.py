@@ -111,9 +111,26 @@ def get_setup(setup_idx):
     setups = session_data['setups']
     interval = session_data['interval']
     period = session_data['period']
+    wf_session = get_session()
+    
+    # Skip setups that occur during open positions
+    while setup_idx < len(setups):
+        setup = setups[setup_idx]
+        setup_date = datetime.fromisoformat(setup['date'].replace('Z', '+00:00')) if isinstance(setup['date'], str) else setup['date']
+        
+        # Check if this trigger falls within any closed position's holding period
+        skip = False
+        for result in wf_session.results:
+            if result.entry_date <= setup_date <= result.exit_date:
+                skip = True
+                break
+        
+        if not skip:
+            break
+        setup_idx += 1
     
     if setup_idx >= len(setups):
-        return jsonify({'error': 'Invalid setup index'}), 404
+        return jsonify({'error': 'No more setups', 'done': True}), 200
     
     setup = setups[setup_idx]
     symbol = setup['symbol']
@@ -166,7 +183,7 @@ def get_setup(setup_idx):
         'symbol': symbol,
         'trigger_date': setup['date'],
         'trigger_idx': trigger_idx,
-        'setup_idx': setup_idx,
+        'setup_idx': setup_idx,  # May have skipped some
         'total_setups': len(setups),
         'chart': chart_data,
         'spx_chart': spx_chart,
