@@ -39,31 +39,36 @@ def scan_stocks():
     trigger_path = data.get('trigger', 'triggers/oversold_bounce.yaml')
     symbols = data.get('symbols', get_sp500_symbols()[:20])  # Limit for speed
     period = data.get('period', '2y')
+    interval = data.get('interval', '1h')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
     
     trigger = load_trigger(trigger_path)
     
     all_setups = []
     for symbol in symbols:
         try:
-            df = fetch_stock_data(symbol, period=period)
+            df = fetch_stock_data(symbol, period=period, interval=interval, 
+                                  start_date=start_date, end_date=end_date)
             triggers = find_triggers(df, trigger)
             
             trigger_indices = df[triggers].index.tolist()
             for idx in trigger_indices:
+                row = df.iloc[idx]
+                date_val = row['Date'] if 'Date' in df.columns else df.index[idx]
                 all_setups.append({
                     'symbol': symbol,
-                    'date': df.iloc[idx]['Date'].isoformat() if hasattr(df.iloc[idx]['Date'], 'isoformat') else str(df.iloc[idx]['Date']),
-                    'index': int(idx),
-                    'close': float(df.iloc[idx]['Close']),
-                    'rsi': float(df.iloc[idx].get('rsi', 0)) if 'rsi' in df.columns else None,
+                    'date': date_val.isoformat() if hasattr(date_val, 'isoformat') else str(date_val),
+                    'index': int(idx) if isinstance(idx, (int, float)) else df.index.get_loc(idx),
+                    'close': float(row['Close']),
                 })
         except Exception as e:
             print(f"Error scanning {symbol}: {e}")
             continue
     
-    # Store setups
+    # Store setups and interval
     session_id = session.get('session_id', 'default')
-    current_setups[session_id] = all_setups
+    current_setups[session_id] = {'setups': all_setups, 'interval': interval, 'period': period}
     
     return jsonify({
         'count': len(all_setups),
@@ -75,7 +80,10 @@ def scan_stocks():
 def get_setup(setup_idx):
     """Get chart data for a specific setup (no future data shown)"""
     session_id = session.get('session_id', 'default')
-    setups = current_setups.get(session_id, [])
+    session_data = current_setups.get(session_id, {'setups': [], 'interval': '1h', 'period': '2y'})
+    setups = session_data['setups']
+    interval = session_data['interval']
+    period = session_data['period']
     
     if setup_idx >= len(setups):
         return jsonify({'error': 'Invalid setup index'}), 404
@@ -85,14 +93,15 @@ def get_setup(setup_idx):
     trigger_idx = setup['index']
     
     # Fetch data
-    df = fetch_stock_data(symbol, period='2y')
+    df = fetch_stock_data(symbol, period=period, interval=interval)
     
     # Only show data UP TO trigger point (no lookahead)
     df_visible = df.iloc[:trigger_idx + 1].copy()
     
     # Format for candlestick chart
+    dates = df_visible['Date'].astype(str).tolist() if 'Date' in df_visible.columns else df_visible.index.astype(str).tolist()
     chart_data = {
-        'dates': df_visible['Date'].astype(str).tolist(),
+        'dates': dates,
         'open': df_visible['Open'].tolist(),
         'high': df_visible['High'].tolist(),
         'low': df_visible['Low'].tolist(),
@@ -118,7 +127,10 @@ def make_decision():
     decision = data['decision']  # "buy" or "pass"
     
     session_id = session.get('session_id', 'default')
-    setups = current_setups.get(session_id, [])
+    session_data = current_setups.get(session_id, {'setups': [], 'interval': '1h', 'period': '2y'})
+    setups = session_data['setups']
+    interval = session_data['interval']
+    period = session_data['period']
     wf_session = get_session()
     
     if setup_idx >= len(setups):
@@ -134,29 +146,37 @@ def make_decision():
         decision=decision
     )
     
+    # Get full data for outcome visualization
+    df = fetch_stock_data(setup['symbol'], period=period, interval=interval)
+    trigger_idx = setup['index']
+    
     # Simulate trade if bought
     result = None
     if decision == "buy":
         trigger = load_trigger('triggers/oversold_bounce.yaml')
-        df = fetch_stock_data(setup['symbol'], period='2y')
-        result = simulate_trade(df, setup['index'] + 1, trigger.trade_params)
+        result = simulate_trade(df, trigger_idx + 1, trigger.trade_params)
     
     wf_session.add_decision(swipe, result)
     
-    # Get the actual outcome (for reveal)
-    df = fetch_stock_data(setup['symbol'], period='2y')
-    trigger_idx = setup['index']
-    future_data = None
+    # Get the full chart including outcome (show 30 candles after trigger)
+    look_ahead = 30
+    df_full = df.iloc[:trigger_idx + look_ahead + 1].copy() if trigger_idx + look_ahead < len(df) else df.copy()
     
-    if trigger_idx + 20 < len(df):
-        future_df = df.iloc[trigger_idx:trigger_idx + 21]
-        future_data = {
-            'dates': future_df['Date'].astype(str).tolist(),
-            'open': future_df['Open'].tolist(),
-            'high': future_df['High'].tolist(),
-            'low': future_df['Low'].tolist(),
-            'close': future_df['Close'].tolist(),
-        }
+    dates = df_full['Date'].astype(str).tolist() if 'Date' in df_full.columns else df_full.index.astype(str).tolist()
+    full_chart = {
+        'dates': dates,
+        'open': df_full['Open'].tolist(),
+        'high': df_full['High'].tolist(),
+        'low': df_full['Low'].tolist(),
+        'close': df_full['Close'].tolist(),
+        'trigger_idx': trigger_idx,  # To mark the trigger point
+    }
+    
+    # Calculate entry, stop, target prices for visualization
+    entry_price = df.iloc[trigger_idx + 1]['Open'] if trigger_idx + 1 < len(df) else None
+    trigger = load_trigger('triggers/oversold_bounce.yaml')
+    stop_price = entry_price * (1 - trigger.trade_params.stop_loss_pct / 100) if entry_price else None
+    target_price = entry_price * (1 + trigger.trade_params.take_profit_pct / 100) if entry_price else None
     
     return jsonify({
         'decision': decision,
@@ -166,7 +186,10 @@ def make_decision():
             'exit_reason': result.exit_reason if result else None,
             'holding_days': result.holding_days if result else None,
         } if result else None,
-        'future_chart': future_data,
+        'full_chart': full_chart,
+        'entry_price': entry_price,
+        'stop_price': stop_price,
+        'target_price': target_price,
         'session_stats': wf_session.get_stats()
     })
 

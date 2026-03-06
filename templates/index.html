@@ -352,6 +352,21 @@
                             <option value="2y" selected>2 Years</option>
                             <option value="5y">5 Years</option>
                         </select>
+                        <select id="interval">
+                            <option value="1d">Daily</option>
+                            <option value="1h" selected>1 Hour</option>
+                            <option value="4h">4 Hour</option>
+                            <option value="15m">15 Min</option>
+                            <option value="5m">5 Min</option>
+                        </select>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem;">
+                            Start Date
+                            <input type="date" id="start-date" style="margin-top: 5px;">
+                        </label>
+                        <label style="color: var(--text-secondary); font-size: 0.85rem;">
+                            End Date
+                            <input type="date" id="end-date" style="margin-top: 5px;">
+                        </label>
                         <button class="scan-btn" id="scan-btn" onclick="startScan()">
                             Scan for Setups
                         </button>
@@ -396,12 +411,15 @@
             const period = document.getElementById('period').value;
             
             const symbols = symbolsInput ? symbolsInput.split(',').map(s => s.trim().toUpperCase()) : null;
+            const startDate = document.getElementById('start-date').value || null;
+            const endDate = document.getElementById('end-date').value || null;
+            const interval = document.getElementById('interval').value;
             
             try {
                 const res = await fetch('/api/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbols, period })
+                    body: JSON.stringify({ symbols, period, start_date: startDate, end_date: endDate, interval })
                 });
                 const data = await res.json();
                 
@@ -498,6 +516,88 @@
                 document.getElementById('trades').textContent = data.session_stats.total_trades;
             }
             
+            // Show the outcome chart
+            if (data.full_chart) {
+                const triggerIdx = data.full_chart.trigger_idx;
+                
+                // Candlestick trace with colors based on before/after trigger
+                const trace = {
+                    type: 'candlestick',
+                    x: data.full_chart.dates,
+                    open: data.full_chart.open,
+                    high: data.full_chart.high,
+                    low: data.full_chart.low,
+                    close: data.full_chart.close,
+                    increasing: { line: { color: '#4ade80' } },
+                    decreasing: { line: { color: '#f87171' } }
+                };
+                
+                const shapes = [];
+                const annotations = [];
+                
+                // Vertical line at trigger point
+                shapes.push({
+                    type: 'line',
+                    x0: data.full_chart.dates[triggerIdx],
+                    x1: data.full_chart.dates[triggerIdx],
+                    y0: 0,
+                    y1: 1,
+                    yref: 'paper',
+                    line: { color: '#d4af37', width: 2, dash: 'dash' }
+                });
+                
+                // Entry, stop, target lines if bought
+                if (decision === 'buy' && data.entry_price) {
+                    // Entry line
+                    shapes.push({
+                        type: 'line',
+                        x0: data.full_chart.dates[triggerIdx + 1],
+                        x1: data.full_chart.dates[data.full_chart.dates.length - 1],
+                        y0: data.entry_price,
+                        y1: data.entry_price,
+                        line: { color: '#c4a882', width: 1 }
+                    });
+                    // Stop loss line
+                    shapes.push({
+                        type: 'line',
+                        x0: data.full_chart.dates[triggerIdx + 1],
+                        x1: data.full_chart.dates[data.full_chart.dates.length - 1],
+                        y0: data.stop_price,
+                        y1: data.stop_price,
+                        line: { color: '#f87171', width: 1, dash: 'dot' }
+                    });
+                    // Take profit line
+                    shapes.push({
+                        type: 'line',
+                        x0: data.full_chart.dates[triggerIdx + 1],
+                        x1: data.full_chart.dates[data.full_chart.dates.length - 1],
+                        y0: data.target_price,
+                        y1: data.target_price,
+                        line: { color: '#4ade80', width: 1, dash: 'dot' }
+                    });
+                }
+                
+                const layout = {
+                    paper_bgcolor: '#2a2420',
+                    plot_bgcolor: '#2a2420',
+                    font: { color: '#e8dcc8' },
+                    xaxis: {
+                        rangeslider: { visible: false },
+                        gridcolor: '#332d28',
+                        showgrid: true
+                    },
+                    yaxis: {
+                        gridcolor: '#332d28',
+                        showgrid: true
+                    },
+                    margin: { t: 10, b: 40, l: 50, r: 20 },
+                    showlegend: false,
+                    shapes: shapes
+                };
+                
+                Plotly.newPlot('chart', [trace], layout, { responsive: true });
+            }
+            
             // Show result if bought
             if (decision === 'buy' && data.result) {
                 const reveal = document.getElementById('result-reveal');
@@ -506,7 +606,7 @@
                 
                 pnl.textContent = (data.result.pnl_pct >= 0 ? '+' : '') + data.result.pnl_pct.toFixed(1) + '%';
                 pnl.className = 'result-pnl ' + (data.result.pnl_pct >= 0 ? 'positive' : 'negative');
-                details.textContent = `${data.result.exit_reason.replace('_', ' ')} in ${data.result.holding_days} days`;
+                details.textContent = `${data.result.exit_reason.replace('_', ' ')} in ${data.result.holding_days} candles`;
                 
                 reveal.classList.add('show');
                 isRevealing = true;
@@ -514,9 +614,15 @@
                 // Add to history
                 addToHistory(document.getElementById('current-symbol').textContent, data.result.pnl_r);
             } else {
-                // Passed, move to next
-                currentSetupIdx++;
-                loadSetup(currentSetupIdx);
+                // Passed - show outcome anyway, then wait for next
+                isRevealing = true;
+                const reveal = document.getElementById('result-reveal');
+                const pnl = document.getElementById('result-pnl');
+                const details = document.getElementById('result-details');
+                pnl.textContent = 'PASSED';
+                pnl.className = 'result-pnl';
+                details.textContent = 'press → or space for next';
+                reveal.classList.add('show');
             }
         }
         

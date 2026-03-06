@@ -17,6 +17,7 @@ def fetch_stock_data(
     start_date: str = None,
     end_date: str = None,
     period: str = "2y",
+    interval: str = "1d",
     use_cache: bool = True
 ) -> pd.DataFrame:
     """
@@ -27,24 +28,28 @@ def fetch_stock_data(
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
         period: Period to fetch if no dates (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
+        interval: Candle interval (1m, 5m, 15m, 1h, 4h, 1d, 1wk, 1mo)
         use_cache: Whether to use cached data
     """
     os.makedirs(CACHE_DIR, exist_ok=True)
     
-    cache_file = f"{CACHE_DIR}/{symbol}_{period}.parquet"
+    cache_file = f"{CACHE_DIR}/{symbol}_{period}_{interval}.parquet"
     
     if use_cache and os.path.exists(cache_file):
-        # Check if cache is fresh (less than 1 day old)
+        # Check if cache is fresh (less than 1 day old for daily, 1 hour for intraday)
         mtime = datetime.fromtimestamp(os.path.getmtime(cache_file))
-        if datetime.now() - mtime < timedelta(days=1):
+        cache_ttl = timedelta(hours=1) if interval != "1d" else timedelta(days=1)
+        if datetime.now() - mtime < cache_ttl:
             return pd.read_parquet(cache_file)
     
     ticker = yf.Ticker(symbol)
     
+    # yfinance has limits on intraday data
+    # 1m: 7 days, 5m/15m: 60 days, 1h: 730 days
     if start_date and end_date:
-        df = ticker.history(start=start_date, end=end_date)
+        df = ticker.history(start=start_date, end=end_date, interval=interval)
     else:
-        df = ticker.history(period=period)
+        df = ticker.history(period=period, interval=interval)
     
     # Clean up column names
     df = df.reset_index()
