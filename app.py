@@ -111,13 +111,23 @@ def get_setup(setup_idx):
         'volume': df_visible['Volume'].tolist(),
     }
     
+    # Check if user can buy (has enough cash)
+    wf_session = get_session()
+    trigger = load_trigger('triggers/oversold_bounce.yaml')
+    entry_price = df.iloc[trigger_idx + 1]['Open'] if trigger_idx + 1 < len(df) else df.iloc[trigger_idx]['Close']
+    can_trade, position_size, reason = wf_session.can_open_position(entry_price, trigger.trade_params.stop_loss_pct)
+    
     return jsonify({
         'symbol': symbol,
         'trigger_date': setup['date'],
         'trigger_idx': trigger_idx,
         'setup_idx': setup_idx,
         'total_setups': len(setups),
-        'chart': chart_data
+        'chart': chart_data,
+        'can_buy': can_trade,
+        'no_cash_reason': reason if not can_trade else None,
+        'available_cash': wf_session.available_cash,
+        'position_size': position_size if can_trade else 0,
     })
 
 
